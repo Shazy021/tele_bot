@@ -2,8 +2,10 @@ import requests
 from aiogram import Dispatcher
 from aiogram import F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, FSInputFile
 from setings import API_FOX_URL
+from create_bot import bot
+from models import yolo
 
 
 # Этот хэндлер будет срабатывать на команду "/start"
@@ -25,9 +27,20 @@ async def process_fox_command(message: Message):
         await message.answer(ERROR_TEXT)
 
 
+
+
+
+
 # Хендлер на фотки
 async def send_photo_echo(message: Message):
     await message.reply_photo(message.photo[0].file_id)
+    file = await bot.get_file(message.photo[-1].file_id)
+    file_path = file.file_path
+    await bot.download_file(file_path, "./data/test.png")
+    yolo.yolo_predict('./data/test.png')
+    await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/result.png"))
+
+
 
 
 # Этот хэндлер на любые текстовые сообщения
