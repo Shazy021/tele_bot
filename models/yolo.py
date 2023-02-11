@@ -80,10 +80,10 @@ def plot_bboxes(image, boxes, labels=[], colors=[], score=True, conf=None):
 
 
 def yolo_predict(path: str):
-    model = YOLO('./models/yolov8s.pt')
+    model = YOLO('./models/yolov8s.pt',)
     img = Image.open(path)
     img = np.asarray(img)
 
     yolo_results = model.predict(path)
-    plot_bboxes(img, yolo_results[0].boxes.boxes, conf=0.2)
+    plot_bboxes(img, yolo_results[0].boxes.boxes, conf=0.5)
 
