@@ -9,8 +9,8 @@ def add_user(user_id: int, user_dict: dict):
     user = cursor.fetchone()
     if not user:
         cursor.execute(
-            f'INSERT INTO users VALUES(?,?,?)',
-            (user_id, user_dict[user_id]['name'], user_dict[user_id]['age'])
+            f'INSERT INTO users VALUES(?,?,?,?)',
+            (user_id, user_dict[user_id]['name'], user_dict[user_id]['age'], user_dict[user_id]['gender'])
         )
         database.commit()
     else:
@@ -35,5 +35,12 @@ def get_user_name(user_id: int) -> str:
 def get_user_age(user_id: int) -> int:
     cursor.execute(
         f'SELECT age FROM users WHERE id={user_id}'
+    )
+    return cursor.fetchone()[0]
+
+
+def get_user_gender(user_id: int) -> str:
+    cursor.execute(
+        f'SELECT gender FROM users WHERE id={user_id}'
     )
     return cursor.fetchone()[0]
