@@ -1,11 +1,46 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, KeyboardButtonPollType
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, KeyboardButtonPollType, InlineKeyboardButton, \
+    InlineKeyboardMarkup
 
+# --- Клавиатура для выбора пола ---
+male_button = InlineKeyboardButton(text='Мужской ♂',
+                                   callback_data='male')
+female_button = InlineKeyboardButton(text='Женский ♀',
+                                     callback_data='female')
+undefined_button = InlineKeyboardButton(text='🤷 Пока не ясно',
+                                        callback_data='undefined_gender')
 
-b1: KeyboardButton = KeyboardButton(text='/rand_fox')
-
-keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
-    keyboard=[[b1]],
-    resize_keyboard=True,
-    one_time_keyboard=True
+gender_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [male_button],
+        [female_button],
+        [undefined_button]
+    ]
 )
 
+# --- Клавиатура для главного меню ---
+show_info = InlineKeyboardButton(text='Просмотр информации о себе',
+                                 callback_data='/show_user_info')
+random_fox_img = InlineKeyboardButton(text='Рандомная фотка лисы',
+                                      callback_data='/rand_fox')
+object_detection = InlineKeyboardButton(text='Детекция объектов на изображении',
+                                        callback_data='/img_detection')
+drop_user_from_database = InlineKeyboardButton(text='Удалить информацию о себе из бд',
+                                               callback_data='/drop_user')
+
+menu_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [show_info],
+        [object_detection],
+        [random_fox_img],
+        [drop_user_from_database]
+    ]
+)
+
+# Кнопка для возврата в главное меню
+back_to_menu = KeyboardButton(text='/start')
+to_menu = ReplyKeyboardMarkup(
+    keyboard=[
+        [back_to_menu]
+    ],
+    resize_keyboard=True,
+)
