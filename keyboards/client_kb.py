@@ -36,11 +36,30 @@ menu_markup = InlineKeyboardMarkup(
     ]
 )
 
-# Кнопка для возврата в главное меню
 back_to_menu = KeyboardButton(text='/start')
 to_menu = ReplyKeyboardMarkup(
     keyboard=[
         [back_to_menu]
     ],
     resize_keyboard=True,
+)
+
+
+# --- Клавиатура для выбора модели ---
+yolo_model = InlineKeyboardButton(text='Yolov8',
+                                  callback_data='yolo')
+yoloseg_model = InlineKeyboardButton(text='Yolov8seg',
+                                     callback_data='yoloseg')
+midas_model = InlineKeyboardButton(text='MiDaS',
+                                   callback_data='midas')
+detectron_model = InlineKeyboardButton(text='Detectron2',
+                                       callback_data='detectron')
+
+choose_model_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [yolo_model],
+        [yoloseg_model],
+        [midas_model],
+        [detectron_model]
+    ]
 )
