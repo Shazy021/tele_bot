@@ -3,14 +3,18 @@ from aiogram import F, html
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, FSInputFile, ReplyKeyboardRemove, CallbackQuery
-from keyboards.client_kb import gender_markup, menu_markup, to_menu
+from keyboards.client_kb import gender_markup, menu_markup, to_menu, choose_model_markup
+from models.yolo import YOLOv8
+
+from models.yolo_seg import YOLOSeg
 from setings import API_FOX_URL
 from create_bot import bot, dp
-from models import yolo, mod
+from models import mod
 from aiogram.fsm.state import State, StatesGroup
-from config_data.user_db import add_user, user_check, get_user_name, get_user_age, get_user_gender
+from config_data.user_db import add_user, user_check, get_user_name, get_user_age, get_user_gender, drop_user_from_users
 
 user_dict = {}
+model = 'yolo'
 
 
 class FSMRegisterClient(StatesGroup):
@@ -29,14 +33,6 @@ class FSMImgDetection(StatesGroup):
 async def process_start_command(message: Message, state: FSMContext) -> None:
     user_status = user_check(message.from_user.id)
     if user_status:
-        await state.set_state(FSMRegisterClient.name)
-        await message.answer(
-            'Добро пожаловать!\nВведи своё имя:',
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        await message.delete()
-        user_dict[message.from_user.id] = {}
-    else:
         await message.answer(
             f'Привет {get_user_name(message.from_user.id)} 👋',
             reply_markup=ReplyKeyboardRemove(),
@@ -46,6 +42,15 @@ async def process_start_command(message: Message, state: FSMContext) -> None:
             reply_markup=menu_markup
         )
         await message.delete()
+
+    else:
+        await state.set_state(FSMRegisterClient.name)
+        await message.answer(
+            'Добро пожаловать!\nВведи своё имя:',
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        await message.delete()
+        user_dict[message.from_user.id] = {}
 
 
 # Хендлер на команду "/cancel"
@@ -146,27 +151,57 @@ async def process_fox_command(callback: CallbackQuery):
         await callback.message.answer(ERROR_TEXT)
 
 
-# Хендлер на команду /get_detect
+# Хендлер на callback /get_detect
 @dp.callback_query(lambda callback: callback.data in ['/img_detection'])
 async def photo_detection(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
+    await callback.message.answer('Выберите модель.', reply_markup=choose_model_markup)
+
+    await state.set_state(FSMImgDetection.img)
+
+
+# Хендлер на загрузку изображения
+@dp.callback_query(lambda callback: callback.data in ['yolo', 'yoloseg', 'midas', 'detectron'])
+async def choose_model(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    global model
+    model = callback.data
+
     await callback.message.answer('Пожалуйста загрузите изображение')
 
     await state.set_state(FSMImgDetection.img)
 
 
-# Хендлер на фотки пришедшие c /img_detection
+# Хендлер на фотки пришедшие c callback /img_detection
 @dp.message(FSMImgDetection.img, F.photo)
 async def send_photo_echo(message: Message, state: FSMContext):
-    await message.reply_photo(message.photo[0].file_id)
     file = await bot.get_file(message.photo[-1].file_id)
     file_path = file.file_path
     await bot.download_file(file_path, "./data/test.png")
-    yolo.yolo_predict('./data/test.png')
-    await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/result.png"))
-    midas_names = "MiDaS_small"
-    mod.MiDas(models_name=midas_names, photo_pth="./data/test.png")
-    await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/midas.png"), reply_markup=to_menu)
+    await message.reply_photo(message.photo[0].file_id)
+
+    global model
+    match model:
+        case 'yolo':
+            model = YOLOv8('./data/test.png')
+            print(model.res_labels)
+            await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/result.png"), reply_markup=to_menu)
+
+        case 'yoloseg':
+            model = YOLOSeg('./models/yolov8l-seg.onnx', conf_thres=0.4, iou_thres=0.5)
+            await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile('./data/yolo-seg.png'),
+                                 reply_markup=to_menu)
+            print(model.class_ids)
+
+        case 'midas':
+            midas_names = "MiDaS_small"
+            mod.MiDas(models_name=midas_names, photo_pth="./data/test.png")
+            await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/midas.png"), reply_markup=to_menu)
+
+        case 'detectron':
+            await message.answer('В разработке', reply_markup=to_menu)
+
+    await message.delete()
     await state.clear()
 
 
@@ -193,5 +228,15 @@ async def user_info(callback: CallbackQuery):
         f'Возраст: {age}\n'
         f'Пол: {gender}\n\n'
         f'Для выхода в главное меню нажмите на кнопку',
+        reply_markup=to_menu
+    )
+
+
+@dp.callback_query(lambda callback: callback.data in ['/drop_user'])
+async def user_drop(callback: CallbackQuery):
+    await callback.message.delete()
+    drop_user_from_users(callback.from_user.id)
+    await callback.message.answer(
+        f'Ваша запись удалена',
         reply_markup=to_menu
     )
