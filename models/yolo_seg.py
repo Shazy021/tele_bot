@@ -1,7 +1,7 @@
 import math
-import time
 import cv2
 import numpy as np
+from numpy import ndarray
 from PIL import Image
 from models.utils import nms, sigmoid, xywh2xyxy, draw_detections
 
@@ -10,7 +10,8 @@ import onnxruntime
 
 class YOLOSeg:
 
-    def __init__(self, path, img_path: str = './data/test.png', conf_thres=0.7, iou_thres=0.5, num_masks=32):
+    def __init__(self, path, img_path: str = './data/test.png', conf_thres: float = 0.7, iou_thres: float = 0.5,
+                 num_masks: int = 32):
         self.conf_threshold = conf_thres
         self.iou_threshold = iou_thres
         self.num_masks = num_masks
@@ -19,17 +20,14 @@ class YOLOSeg:
         self.initialize_model(path)
 
         # img load
-        self.img = Image.open(img_path)
+        self.img = cv2.imread(img_path)
         self.img = cv2.cvtColor(np.array(self.img, dtype=np.uint8), cv2.COLOR_RGB2BGR)
 
         self.segment_objects(self.img)
         self.combined_img = self.draw_masks(self.img)
         cv2.imwrite('./data/yolo-seg.png', self.combined_img)
 
-    def __call__(self, image):
-        return self.segment_objects(image)
-
-    def initialize_model(self, path):
+    def initialize_model(self, path: str):
         self.session = onnxruntime.InferenceSession(path,
                                                     providers=['CUDAExecutionProvider',
                                                                'CPUExecutionProvider'])
@@ -37,7 +35,7 @@ class YOLOSeg:
         self.get_input_details()
         self.get_output_details()
 
-    def segment_objects(self, image):
+    def segment_objects(self, image: ndarray):
         input_tensor = self.prepare_input(image)
 
         # Perform inference on the image
@@ -48,7 +46,7 @@ class YOLOSeg:
 
         return self.boxes, self.scores, self.class_ids, self.mask_maps
 
-    def prepare_input(self, image):
+    def prepare_input(self, image: ndarray):
         self.img_height, self.img_width = image.shape[:2]
 
         input_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -63,12 +61,12 @@ class YOLOSeg:
 
         return input_tensor
 
-    def inference(self, input_tensor):
+    def inference(self, input_tensor: ndarray):
         outputs = self.session.run(self.output_names, {self.input_names[0]: input_tensor})
 
         return outputs
 
-    def process_box_output(self, box_output):
+    def process_box_output(self, box_output: ndarray):
 
         predictions = np.squeeze(box_output).T
         num_classes = box_output.shape[1] - self.num_masks - 4
@@ -95,8 +93,7 @@ class YOLOSeg:
 
         return boxes[indices], scores[indices], class_ids[indices], mask_predictions[indices]
 
-    def process_mask_output(self, mask_predictions, mask_output):
-
+    def process_mask_output(self, mask_predictions: ndarray, mask_output: ndarray):
         if mask_predictions.shape[0] == 0:
             return []
 
@@ -138,7 +135,7 @@ class YOLOSeg:
 
         return mask_maps
 
-    def extract_boxes(self, box_predictions):
+    def extract_boxes(self, box_predictions: ndarray):
         # Extract boxes from predictions
         boxes = box_predictions[:, :4]
 
@@ -158,11 +155,11 @@ class YOLOSeg:
 
         return boxes
 
-    def draw_detections(self, image, mask_alpha=0.4):
+    def draw_detections(self, image: ndarray, mask_alpha: float = 0.4):
         return draw_detections(image, self.boxes, self.scores,
                                self.class_ids, mask_alpha)
 
-    def draw_masks(self, image, mask_alpha=0.5):
+    def draw_masks(self, image: ndarray, mask_alpha: float = 0.5):
         return draw_detections(image, self.boxes, self.scores,
                                self.class_ids, mask_alpha, mask_maps=self.mask_maps)
 
