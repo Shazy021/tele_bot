@@ -1,5 +1,7 @@
 import cv2
+import matplotlib.pyplot as plt
 import torch
+import matplotlib.image as mpimg
 
 
 class MiDas():
@@ -43,4 +45,6 @@ class MiDas():
 
         output = prediction.cpu().numpy()
 
-        cv2.imwrite('./data/midas.png', output)
+        cv2.imwrite('./data/midas_chb.png', output)
+        mpimg.imsave("./data/midas.png", output)
+        plt.show()

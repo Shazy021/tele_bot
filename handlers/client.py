@@ -4,6 +4,8 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, FSInputFile, ReplyKeyboardRemove, CallbackQuery
 from keyboards.client_kb import gender_markup, menu_markup, to_menu, choose_model_markup
+from models.detectron import Detectron2
+from models.utils import class_names
 from models.yolo import YOLOv8
 
 from models.yolo_seg import YOLOSeg
@@ -11,12 +13,13 @@ from setings import API_FOX_URL
 from create_bot import bot, dp
 from models import mod
 from aiogram.fsm.state import State, StatesGroup
-from config_data.user_db import add_user, user_check, get_user_name, get_user_age, get_user_gender, drop_user_from_users
+from config_data.user_db import add_user, user_check, get_user_name, get_user_age, get_user_gender, \
+    drop_user_from_users, get_detection_info, add_detections
 
 user_dict = {}
-model = 'yolo'
 
 
+# Машина состояний для регистрации
 class FSMRegisterClient(StatesGroup):
     name = State()
     gender = State()
@@ -24,6 +27,7 @@ class FSMRegisterClient(StatesGroup):
     photo = State()
 
 
+# Мвшина состояний для детекции
 class FSMImgDetection(StatesGroup):
     img = State()
 
@@ -184,14 +188,34 @@ async def send_photo_echo(message: Message, state: FSMContext):
     match model:
         case 'yolo':
             model = YOLOv8('./data/test.png')
-            print(model.res_labels)
+            res_dict = {}
+
+            for key in model.res_labels:
+                if key in res_dict:
+                    res_dict[key] += 1
+                else:
+                    res_dict[key] = 1
+            print(res_dict)
+
+            add_detections(message.from_user.id, res_dict)
             await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/result.png"), reply_markup=to_menu)
+            del res_dict
 
         case 'yoloseg':
             model = YOLOSeg('./models/yolov8l-seg.onnx', conf_thres=0.4, iou_thres=0.5)
+            res_dict = {}
+
+            for key in model.class_ids:
+                if class_names[key] in res_dict:
+                    res_dict[class_names[key]] += 1
+                else:
+                    res_dict[class_names[key]] = 1
+            print(res_dict)
+
+            add_detections(message.from_user.id, res_dict)
             await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile('./data/yolo-seg.png'),
                                  reply_markup=to_menu)
-            print(model.class_ids)
+            del res_dict
 
         case 'midas':
             midas_names = "MiDaS_small"
@@ -199,7 +223,25 @@ async def send_photo_echo(message: Message, state: FSMContext):
             await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/midas.png"), reply_markup=to_menu)
 
         case 'detectron':
-            await message.answer('В разработке', reply_markup=to_menu)
+            try:
+                model = Detectron2('./data/test.png', conf_thres=0.5)
+                res_dict = {}
+
+                for key in model.classes:
+                    if class_names[key] in res_dict:
+                        res_dict[class_names[key]] += 1
+                    else:
+                        res_dict[class_names[key]] = 1
+                print(res_dict)
+                del model
+
+                add_detections(message.from_user.id, res_dict)
+                await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile("./data/detectron.png"),
+                                     reply_markup=to_menu)
+            except:
+                await message.answer('Пожалуйста попробуйте загрузить другое изображение')
+                await state.set_state(FSMImgDetection.img)
+                return None
 
     await message.delete()
     await state.clear()
@@ -223,15 +265,27 @@ async def user_info(callback: CallbackQuery):
     user_id = callback.from_user.id
     name, age, gender = get_user_name(user_id), get_user_age(user_id), get_user_gender(user_id)
 
+    info = get_detection_info(user_id)
+    sorted_tuples = sorted(info.items(), key=lambda item: item[1])[::-1]
+    info = {k: v for k, v in sorted_tuples}
+    keys = list(info.keys())[1:]
+    text = ''
+
+    for i, key in enumerate(keys):
+        text += '   ' + str(keys[i][:1]).upper() + keys[i][1::] + ': ' + str(info[key]) + "\n"
+
     await callback.message.answer(
         f'Информация о пользователе {name}:\n\n'
         f'Возраст: {age}\n'
         f'Пол: {gender}\n\n'
+        f'За всё время, вы задетектировали:\n'
+        f'{text}\n\n'
         f'Для выхода в главное меню нажмите на кнопку',
         reply_markup=to_menu
     )
 
 
+# Хендлер на удаление записи в таблице users
 @dp.callback_query(lambda callback: callback.data in ['/drop_user'])
 async def user_drop(callback: CallbackQuery):
     await callback.message.delete()
