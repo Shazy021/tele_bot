@@ -6,6 +6,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+/setings.py
+/venv
 
 # C extensions
 *.so
