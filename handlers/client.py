@@ -202,7 +202,7 @@ async def send_photo_echo(message: Message, state: FSMContext):
             del res_dict
 
         case 'yoloseg':
-            model = YOLOSeg('./models/yolov8l-seg.onnx', conf_thres=0.4, iou_thres=0.5)
+            model = YOLOSeg('./models/yolov8l-seg.onnx', conf_thres=0.1, iou_thres=0.1)
             res_dict = {}
 
             for key in model.class_ids:
