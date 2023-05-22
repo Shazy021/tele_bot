@@ -44,7 +44,7 @@ Markdown==3.4.1
 MarkupSafe==2.1.2
 matplotlib==3.6.3
 matplotlib-inline==0.1.6
-mpmath==1.2.1
+mpmath==1.3.0
 multidict==6.0.4
 mypy-extensions==1.0.0
 numpy==1.24.1
